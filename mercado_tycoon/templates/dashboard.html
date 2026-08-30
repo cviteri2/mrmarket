@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ store.name }} — Mercado Tycoon{% endblock %}
+{% block content %}
+
+<section class="store-header">
+  <h1>{{ store.name }}</h1>
+  <div class="stats">
+    <span>Zona: {{ store.neighborhood_type }}</span>
+    <span>Reputación: {{ "%.0f"|format(store.reputation) }}/100</span>
+    <span>Renta: ${{ "%.2f"|format(store.rent_cost) }}</span>
+  </div>
+</section>
+
+{% if spoilage_events %}
+<section class="notice">
+  <strong>Desde tu última visita se perdió producto por merma:</strong>
+  <ul>
+    {% for e in spoilage_events %}
+      <li>{{ e.units }} unidad(es) del producto #{{ e.product_id }} — pérdida ${{ "%.2f"|format(e.loss_value) }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<canvas id="floor" width="600" height="140"></canvas>
+
+<section class="panels">
+  <div class="panel">
+    <h2>Inventario</h2>
+    {% if inventory_items %}
+      <table>
+        <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th></th></tr></thead>
+        <tbody>
+          {% for item in inventory_items %}
+          <tr>
+            <td>{{ item.product.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>${{ "%.2f"|format(item.product.base_price) }}</td>
+            <td>
+              <form method="post" action="{{ url_for('store.sell') }}">
+                <input type="hidden" name="product_id" value="{{ item.product.id }}">
+                <button type="submit" {% if item.quantity <= 0 %}disabled{% endif %}>Vender 1</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>Todavía no tienes inventario. Compra productos del catálogo.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Catálogo mayorista</h2>
+    <table>
+      <thead><tr><th>Producto</th><th>Costo</th><th>Perecedero</th><th>Cantidad</th><th></th></tr></thead>
+      <tbody>
+        {% for product in catalog %}
+        <tr>
+          <td>{{ product.name }}</td>
+          <td>${{ "%.2f"|format(product.base_cost) }}</td>
+          <td>{{ "Sí" if product.is_perishable else "No" }}</td>
+          <td>
+            <form method="post" action="{{ url_for('store.buy') }}" class="buy-form">
+              <input type="hidden" name="product_id" value="{{ product.id }}">
+              <input type="number" name="quantity" value="10" min="1" max="999">
+              <button type="submit">Comprar</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/floor.js') }}"></script>
+<script>
+  initFloor(document.getElementById('floor'), {
+    reputation: {{ store.reputation }},
+    productCount: {{ inventory_items|length }}
+  });
+</script>
+{% endblock %}

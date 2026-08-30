@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Crear cuenta — Mercado Tycoon{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1>Crear cuenta</h1>
+  <form method="post">
+    <label>Usuario<input type="text" name="username" required autofocus></label>
+    <label>Contraseña<input type="password" name="password" required></label>
+    <button type="submit">Crear tienda</button>
+  </form>
+  <p>¿Ya tienes cuenta? <a href="{{ url_for('auth.login') }}">Inicia sesión</a></p>
+</div>
+{% endblock %}
