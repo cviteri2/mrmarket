@@ -1,85 +1,132 @@
 {% extends "base.html" %}
 {% block title %}{{ store.name }} — Mercado Tycoon{% endblock %}
 {% block content %}
+{% set icons = {'abarrotes': '📦', 'lacteos': '🥛', 'panaderia': '🍞', 'frutas': '🍎', 'bebidas': '🥤'} %}
 
 <section class="store-header">
-  <h1>{{ store.name }}</h1>
+  <h1>🏪 {{ store.name }}</h1>
   <div class="stats">
-    <span>Zona: {{ store.neighborhood_type }}</span>
-    <span>Reputación: {{ "%.0f"|format(store.reputation) }}/100</span>
-    <span>Renta: ${{ "%.2f"|format(store.rent_cost) }}</span>
+    <span title="Tipo de barrio">📍 {{ store.neighborhood_type|capitalize }}</span>
+    <span title="Reputación de tu tienda">⭐ {{ "%.0f"|format(store.reputation) }}/100</span>
+    <span title="Renta que pagas por el local">🏠 ${{ "%.2f"|format(store.rent_cost) }}</span>
   </div>
 </section>
 
 {% if spoilage_events %}
 <section class="notice">
-  <strong>Desde tu última visita se perdió producto por merma:</strong>
+  <strong>😬 Mientras no estabas, se dañó producto por vencimiento:</strong>
   <ul>
     {% for e in spoilage_events %}
-      <li>{{ e.units }} unidad(es) del producto #{{ e.product_id }} — pérdida ${{ "%.2f"|format(e.loss_value) }}</li>
+      <li>{{ e.units }} unidad(es) — pérdida ${{ "%.2f"|format(e.loss_value) }}</li>
     {% endfor %}
   </ul>
+  <p class="notice-tip">Tip: los productos perecederos (🥛🍞🍎) se dañan con el tiempo. Vuelve seguido y no compres más de lo que puedes vender pronto.</p>
 </section>
 {% endif %}
 
-<canvas id="floor" width="600" height="140"></canvas>
+<div class="game-layout">
+  <div class="main-column">
 
-<section class="panels">
-  <div class="panel">
-    <h2>Inventario</h2>
-    {% if inventory_items %}
-      <table>
-        <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th></th></tr></thead>
-        <tbody>
-          {% for item in inventory_items %}
-          <tr>
-            <td>{{ item.product.name }}</td>
-            <td>{{ item.quantity }}</td>
-            <td>${{ "%.2f"|format(item.product.base_price) }}</td>
-            <td>
-              <form method="post" action="{{ url_for('store.sell') }}">
-                <input type="hidden" name="product_id" value="{{ item.product.id }}">
-                <button type="submit" {% if item.quantity <= 0 %}disabled{% endif %}>Vender 1</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p>Todavía no tienes inventario. Compra productos del catálogo.</p>
-    {% endif %}
+    <canvas id="floor" width="640" height="180"></canvas>
+
+    <section class="panels">
+      <div class="panel">
+        <h2>📦 Tu inventario</h2>
+        {% if inventory_items %}
+          <table>
+            <thead><tr><th></th><th>Producto</th><th>Cant.</th><th>Precio</th><th></th></tr></thead>
+            <tbody>
+              {% for item in inventory_items %}
+              <tr class="{{ 'row-empty' if item.quantity <= 0 else '' }}">
+                <td class="icon-cell">{{ icons.get(item.product.category, '🛍️') }}</td>
+                <td>{{ item.product.name }}{% if item.product.is_perishable %} <span class="perishable-tag" title="Se daña con el tiempo">⏳</span>{% endif %}</td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ "%.2f"|format(item.product.base_price) }}</td>
+                <td>
+                  <form method="post" action="{{ url_for('store.sell') }}">
+                    <input type="hidden" name="product_id" value="{{ item.product.id }}">
+                    <button type="submit" class="sell-btn" {% if item.quantity <= 0 %}disabled{% endif %}>🙋 Atender</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="empty-hint">Todavía no tienes nada en tus estantes. Compra algo del catálogo mayorista para abrir tu tienda 👇</p>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <h2>🚚 Catálogo mayorista</h2>
+        <table>
+          <thead><tr><th></th><th>Producto</th><th>Costo</th><th></th></tr></thead>
+          <tbody>
+            {% for product in catalog %}
+            <tr>
+              <td class="icon-cell">{{ icons.get(product.category, '🛍️') }}</td>
+              <td>{{ product.name }}{% if product.is_perishable %} <span class="perishable-tag" title="Se daña con el tiempo">⏳</span>{% endif %}</td>
+              <td>${{ "%.2f"|format(product.base_cost) }}</td>
+              <td>
+                <form method="post" action="{{ url_for('store.buy') }}" class="buy-form">
+                  <input type="hidden" name="product_id" value="{{ product.id }}">
+                  <input type="number" name="quantity" value="10" min="1" max="999">
+                  <button type="submit">Comprar</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
-  <div class="panel">
-    <h2>Catálogo mayorista</h2>
-    <table>
-      <thead><tr><th>Producto</th><th>Costo</th><th>Perecedero</th><th>Cantidad</th><th></th></tr></thead>
-      <tbody>
-        {% for product in catalog %}
-        <tr>
-          <td>{{ product.name }}</td>
-          <td>${{ "%.2f"|format(product.base_cost) }}</td>
-          <td>{{ "Sí" if product.is_perishable else "No" }}</td>
-          <td>
-            <form method="post" action="{{ url_for('store.buy') }}" class="buy-form">
-              <input type="hidden" name="product_id" value="{{ product.id }}">
-              <input type="number" name="quantity" value="10" min="1" max="999">
-              <button type="submit">Comprar</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
+  <aside class="guide">
+    <h2>🧭 Guía rápida</h2>
+    <ol class="guide-steps">
+      <li class="{{ 'done' if has_bought else 'active' }}">
+        <span class="check">{{ '✅' if has_bought else '1️⃣' }}</span>
+        <div>
+          <strong>Compra inventario</strong>
+          <p>Ve al catálogo mayorista (abajo, a la derecha de tu inventario) y compra algún producto. Sin stock no puedes vender nada.</p>
+        </div>
+      </li>
+      <li class="{{ 'done' if has_sold else ('active' if has_stock else '') }}">
+        <span class="check">{{ '✅' if has_sold else '2️⃣' }}</span>
+        <div>
+          <strong>Atiende a tu primer cliente</strong>
+          <p>Haz clic en "🙋 Atender" junto a un producto para venderlo manualmente. Cada venta te da efectivo y sube tu reputación ⭐.</p>
+        </div>
+      </li>
+      <li class="{{ 'active' if has_perishable_stock else '' }}">
+        <span class="check">{{ '⏳' }}</span>
+        <div>
+          <strong>Cuidado con lo perecedero</strong>
+          <p>Los productos marcados con ⏳ (leche, pan, fruta) se dañan con el tiempo si no los vendes. Revisa tu tienda seguido.</p>
+        </div>
+      </li>
+      <li>
+        <span class="check">⭐</span>
+        <div>
+          <strong>Cuida tu reputación</strong>
+          <p>Subes reputación vendiendo. Bajas si un cliente pide algo que no tienes ("quiebre de stock"). Más reputación = más clientes.</p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="guide-tip">
+      💡 <strong>Consejo:</strong> no compres de más al inicio — con poco efectivo es mejor tener variedad en poca cantidad que agotar tu caja en un solo producto.
+    </div>
+  </aside>
+</div>
 
 <script src="{{ url_for('static', filename='js/floor.js') }}"></script>
 <script>
   initFloor(document.getElementById('floor'), {
     reputation: {{ store.reputation }},
-    productCount: {{ inventory_items|length }}
+    categories: {{ inventory_items|selectattr('quantity', 'greaterthan', 0)|map(attribute='product.category')|unique|list|tojson }},
+    hasStock: {{ 'true' if has_stock else 'false' }}
   });
 </script>
 {% endblock %}

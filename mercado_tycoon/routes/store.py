@@ -40,6 +40,11 @@ def dashboard():
     inventory_items = StoreInventory.query.filter_by(store_id=store.id).all()
     catalog = Product.query.all()
 
+    has_bought = len(inventory_items) > 0
+    has_stock = any(item.quantity > 0 for item in inventory_items)
+    has_sold = store.total_sales_count > 0
+    has_perishable_stock = any(item.quantity > 0 and item.product.is_perishable for item in inventory_items)
+
     return render_template(
         "dashboard.html",
         store=store,
@@ -47,6 +52,10 @@ def dashboard():
         inventory_items=inventory_items,
         catalog=catalog,
         spoilage_events=[e for e in events if e["type"] == "spoilage"],
+        has_bought=has_bought,
+        has_stock=has_stock,
+        has_sold=has_sold,
+        has_perishable_stock=has_perishable_stock,
     )
 
 
@@ -96,6 +105,7 @@ def sell():
     inventory.quantity -= 1
     current_user.cash += product.base_price
     store.reputation = min(100.0, store.reputation + 1)
+    store.total_sales_count += 1
     db.session.commit()
 
     flash(f"Vendiste 1 x {product.name} por ${product.base_price:.2f}.")

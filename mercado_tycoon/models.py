@@ -30,6 +30,7 @@ class Store(db.Model):
     rent_cost = db.Column(db.Float, nullable=False, default=10.0)
     reputation = db.Column(db.Float, nullable=False, default=50.0)
     last_update_ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    total_sales_count = db.Column(db.Integer, nullable=False, default=0)
 
     inventory = db.relationship("StoreInventory", backref="store", lazy=True)
 
